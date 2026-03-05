@@ -5,26 +5,52 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Link, useNavigate } from 'react-router-dom';
-import { Wrench, Mail, Lock } from 'lucide-react';
+import { Wrench, Mail, Lock, AlertTriangle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
+  const [resending, setResending] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
+
+  const handleResendConfirmation = async () => {
+    setResending(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      });
+      if (error) throw error;
+      toast.success('Correo de confirmación reenviado. Revisa tu bandeja de entrada.');
+    } catch (err: any) {
+      toast.error(err.message || 'Error al reenviar el correo');
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setEmailNotConfirmed(false);
     
     const { error } = await signIn(email, password);
 
     if (error) {
-      toast.error(error.message || 'Error al iniciar sesión');
+      if (error.message?.toLowerCase().includes('email not confirmed') || 
+          error.message?.toLowerCase().includes('email_not_confirmed')) {
+        setEmailNotConfirmed(true);
+      } else {
+        toast.error(error.message || 'Error al iniciar sesión');
+      }
     } else {
       toast.success('¡Bienvenido de nuevo!');
       navigate('/');
@@ -48,6 +74,28 @@ const Login = () => {
               Accede a tu cuenta de FerreHogar
             </p>
           </div>
+
+          {emailNotConfirmed && (
+            <Alert className="mb-6 border-destructive/50 bg-destructive/5">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              <AlertDescription className="text-destructive">
+                <p className="font-medium mb-1">Tu correo electrónico no ha sido confirmado</p>
+                <p className="text-sm mb-3">
+                  Revisa tu bandeja de entrada (y spam) para el enlace de confirmación.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResendConfirmation}
+                  disabled={resending}
+                  className="gap-2"
+                >
+                  <RefreshCw className={`h-3 w-3 ${resending ? 'animate-spin' : ''}`} />
+                  {resending ? 'Enviando...' : 'Reenviar confirmación'}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">

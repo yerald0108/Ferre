@@ -248,16 +248,42 @@ const Products = () => {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <p className="text-muted-foreground text-lg">
+                  <p className="text-muted-foreground text-lg mb-2">
                     No se encontraron productos con esos criterios.
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    Prueba buscando en otra categoría o ajusta los filtros.
                   </p>
                   <Button
                     variant="outline"
-                    className="mt-4"
+                    className="mt-2 mb-8"
                     onClick={clearAllFilters}
                   >
                     Limpiar filtros
                   </Button>
+                  
+                  {/* Category suggestions */}
+                  {categories && categories.length > 0 && (
+                    <div className="border-t pt-8">
+                      <h3 className="text-sm font-medium text-foreground mb-4">Explora por categoría</h3>
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        {categories.map((cat) => (
+                          <Button
+                            key={cat.id}
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => {
+                              clearAllFilters();
+                              handleCategoryChange(cat.id);
+                            }}
+                            className="gap-1"
+                          >
+                            {cat.icon} {cat.name}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

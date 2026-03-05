@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
@@ -7,10 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Package, Calendar, MapPin, CreditCard, Eye, ShoppingBag } from 'lucide-react';
+import { Package, Calendar, MapPin, CreditCard, Eye, ShoppingBag, ChevronLeft, ChevronRight } from 'lucide-react';
 import { OrderTimeline } from '@/components/OrderTimeline';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+const ORDERS_PER_PAGE = 10;
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   pending: { label: 'Pendiente', variant: 'secondary' },
@@ -25,6 +28,7 @@ const MyOrders = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { data: orders, isLoading, error } = useUserOrders();
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Redirect to login if not authenticated
   if (!authLoading && !user) {
@@ -44,6 +48,12 @@ const MyOrders = () => {
       currency: 'CUP',
     }).format(amount);
   };
+
+  const totalPages = orders ? Math.ceil(orders.length / ORDERS_PER_PAGE) : 0;
+  const paginatedOrders = orders?.slice(
+    (currentPage - 1) * ORDERS_PER_PAGE,
+    currentPage * ORDERS_PER_PAGE
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -79,75 +89,102 @@ const MyOrders = () => {
                 <Button onClick={() => window.location.reload()}>Reintentar</Button>
               </CardContent>
             </Card>
-          ) : orders && orders.length > 0 ? (
-            <div className="space-y-4">
-              {orders.map((order) => {
-                const status = statusConfig[order.status] || { label: order.status, variant: 'secondary' as const };
-                
-                return (
-                  <Card key={order.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                    <CardHeader className="bg-muted/50 pb-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <CardTitle className="text-lg font-semibold">
-                            Pedido #{formatOrderId(order.id)}
-                          </CardTitle>
-                          <Badge variant={status.variant}>{status.label}</Badge>
-                        </div>
-                        <span className="text-2xl font-bold text-primary">
-                          {formatCurrency(order.total_amount)}
-                        </span>
-                      </div>
-                    </CardHeader>
-                    
-                    <CardContent className="pt-4">
-                      <OrderTimeline status={order.status} />
-                      <div className="grid gap-3 text-sm mt-4">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Calendar className="h-4 w-4" />
-                          <span>{formatDate(order.created_at)}</span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          <span>{order.delivery_address}, {order.municipality}{(order as any).province ? `, ${(order as any).province}` : ''}</span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <CreditCard className="h-4 w-4" />
-                          <span className="capitalize">{order.payment_method}</span>
-                        </div>
-
-                        {order.order_items && order.order_items.length > 0 && (
-                          <div className="mt-3 pt-3 border-t">
-                            <p className="font-medium mb-2">Productos:</p>
-                            <ul className="space-y-1">
-                              {order.order_items.map((item) => (
-                                <li key={item.id} className="flex justify-between text-muted-foreground">
-                                  <span>{item.quantity}x {item.product_name}</span>
-                                  <span>{formatCurrency(item.price_at_purchase * item.quantity)}</span>
-                                </li>
-                              ))}
-                            </ul>
+          ) : paginatedOrders && paginatedOrders.length > 0 ? (
+            <>
+              <div className="space-y-4">
+                {paginatedOrders.map((order) => {
+                  const status = statusConfig[order.status] || { label: order.status, variant: 'secondary' as const };
+                  
+                  return (
+                    <Card key={order.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                      <CardHeader className="bg-muted/50 pb-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-lg font-semibold">
+                              Pedido #{formatOrderId(order.id)}
+                            </CardTitle>
+                            <Badge variant={status.variant}>{status.label}</Badge>
                           </div>
-                        )}
-                      </div>
+                          <span className="text-2xl font-bold text-primary">
+                            {formatCurrency(order.total_amount)}
+                          </span>
+                        </div>
+                      </CardHeader>
                       
-                      <div className="mt-4 pt-4 border-t flex justify-end">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => navigate(`/pedido/${order.id}`)}
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          Ver detalles
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+                      <CardContent className="pt-4">
+                        <OrderTimeline status={order.status} />
+                        <div className="grid gap-3 text-sm mt-4">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Calendar className="h-4 w-4" />
+                            <span>{formatDate(order.created_at)}</span>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <MapPin className="h-4 w-4" />
+                            <span>{order.delivery_address}, {order.municipality}{(order as any).province ? `, ${(order as any).province}` : ''}</span>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <CreditCard className="h-4 w-4" />
+                            <span className="capitalize">{order.payment_method}</span>
+                          </div>
+
+                          {order.order_items && order.order_items.length > 0 && (
+                            <div className="mt-3 pt-3 border-t">
+                              <p className="font-medium mb-2">Productos:</p>
+                              <ul className="space-y-1">
+                                {order.order_items.map((item) => (
+                                  <li key={item.id} className="flex justify-between text-muted-foreground">
+                                    <span>{item.quantity}x {item.product_name}</span>
+                                    <span>{formatCurrency(item.price_at_purchase * item.quantity)}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="mt-4 pt-4 border-t flex justify-end">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => navigate(`/pedido/${order.id}`)}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Ver detalles
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-8">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm text-muted-foreground px-4">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </>
           ) : (
             <Card className="text-center py-16">
               <CardContent className="space-y-4">

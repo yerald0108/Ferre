@@ -26,6 +26,8 @@ const STEPS = [
   { number: 3, title: 'Pago', description: 'Método de pago' },
 ];
 
+const CHECKOUT_STORAGE_KEY = 'ferrehogar-checkout';
+
 const Checkout = () => {
   const { items, getTotalPrice, clearCart } = useCartStore();
   const { user, loading: authLoading } = useAuth();
@@ -34,11 +36,15 @@ const Checkout = () => {
   const createOrder = useCreateOrder();
   const navigate = useNavigate();
   
-  const [currentStep, setCurrentStep] = useState(1);
+  // Restore step from sessionStorage
+  const savedData = typeof window !== 'undefined' ? sessionStorage.getItem(CHECKOUT_STORAGE_KEY) : null;
+  const parsed = savedData ? JSON.parse(savedData) : null;
+  
+  const [currentStep, setCurrentStep] = useState(parsed?.step || 1);
   const [saveToProfile, setSaveToProfile] = useState(true);
   const [stockCheckPending, setStockCheckPending] = useState(false);
   const [stockIssues, setStockIssues] = useState<StockCheckResult[]>([]);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(parsed?.formData || {
     fullName: '',
     phone: '',
     email: '',
@@ -50,10 +56,15 @@ const Checkout = () => {
     notes: '',
   });
 
-  // Auto-fill form with profile data when loaded
+  // Persist to sessionStorage on changes
   useEffect(() => {
-    if (profile) {
-      setFormData((prev) => ({
+    sessionStorage.setItem(CHECKOUT_STORAGE_KEY, JSON.stringify({ step: currentStep, formData }));
+  }, [currentStep, formData]);
+
+  // Auto-fill form with profile data when loaded (only if not restored from session)
+  useEffect(() => {
+    if (profile && !parsed) {
+      setFormData((prev: typeof formData) => ({
         ...prev,
         fullName: profile.full_name || prev.fullName,
         phone: profile.phone || prev.phone,
@@ -62,8 +73,8 @@ const Checkout = () => {
         province: (profile as any).province || prev.province,
         municipality: profile.municipality || prev.municipality,
       }));
-    } else if (user?.email) {
-      setFormData((prev) => ({
+    } else if (user?.email && !parsed) {
+      setFormData((prev: typeof formData) => ({
         ...prev,
         email: user.email || prev.email,
       }));
@@ -72,11 +83,11 @@ const Checkout = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev: typeof formData) => ({ ...prev, [name]: value }));
   };
 
   const handleSelectChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev: typeof formData) => ({ ...prev, [field]: value }));
   };
 
   const validateStep = (step: number): boolean => {
@@ -135,12 +146,12 @@ const Checkout = () => {
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
-      setCurrentStep((prev) => Math.min(prev + 1, STEPS.length));
+      setCurrentStep((prev: number) => Math.min(prev + 1, STEPS.length));
     }
   };
 
   const handleBack = () => {
-    setCurrentStep((prev) => Math.max(prev - 1, 1));
+    setCurrentStep((prev: number) => Math.max(prev - 1, 1));
   };
 
   const handleSubmit = async () => {
@@ -226,6 +237,9 @@ const Checkout = () => {
         }
       }
 
+      // Clear checkout session
+      sessionStorage.removeItem(CHECKOUT_STORAGE_KEY);
+      
       toast.success('¡Pedido realizado con éxito!');
       clearCart();
       navigate(`/pedido/${orderData.id}`);

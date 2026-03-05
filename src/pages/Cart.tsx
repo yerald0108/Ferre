@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { useCartStore } from '@/lib/store';
@@ -15,12 +16,86 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const Cart = () => {
   const { items, removeItem, updateQuantity, getTotalPrice, clearCart } = useCartStore();
+  const [stockWarnings, setStockWarnings] = useState<string[]>([]);
+
+  // Sync prices and validate stock on load
+  useEffect(() => {
+    const syncCart = async () => {
+      if (items.length === 0) return;
+
+      const productIds = items.map(item => item.product.id);
+      const { data: products, error } = await supabase
+        .from('products')
+        .select('id, price, stock, name, is_active')
+        .in('id', productIds);
+
+      if (error || !products) return;
+
+      const warnings: string[] = [];
+      const store = useCartStore.getState();
+
+      products.forEach(dbProduct => {
+        const cartItem = items.find(i => i.product.id === dbProduct.id);
+        if (!cartItem) return;
+
+        // Remove inactive products
+        if (!dbProduct.is_active) {
+          store.removeItem(dbProduct.id);
+          warnings.push(`"${dbProduct.name}" ya no está disponible y fue eliminado del carrito.`);
+          return;
+        }
+
+        // Update price if changed
+        if (Number(dbProduct.price) !== cartItem.product.price) {
+          store.addItem(
+            { ...cartItem.product, price: Number(dbProduct.price), stock: dbProduct.stock },
+            0 // don't add quantity, just update
+          );
+          // Force update by re-setting the items with new price
+          useCartStore.setState((state) => ({
+            items: state.items.map(i =>
+              i.product.id === dbProduct.id
+                ? { ...i, product: { ...i.product, price: Number(dbProduct.price), stock: dbProduct.stock } }
+                : i
+            ),
+          }));
+          warnings.push(`El precio de "${dbProduct.name}" se actualizó.`);
+        }
+
+        // Cap quantity to available stock
+        if (dbProduct.stock === 0) {
+          store.removeItem(dbProduct.id);
+          warnings.push(`"${dbProduct.name}" se agotó y fue eliminado del carrito.`);
+        } else if (cartItem.quantity > dbProduct.stock) {
+          store.updateQuantity(dbProduct.id, dbProduct.stock);
+          warnings.push(`La cantidad de "${dbProduct.name}" se ajustó a ${dbProduct.stock} (stock disponible).`);
+        } else {
+          // Still update stock info silently
+          useCartStore.setState((state) => ({
+            items: state.items.map(i =>
+              i.product.id === dbProduct.id
+                ? { ...i, product: { ...i.product, stock: dbProduct.stock } }
+                : i
+            ),
+          }));
+        }
+      });
+
+      if (warnings.length > 0) {
+        setStockWarnings(warnings);
+      }
+    };
+
+    syncCart();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-CU', {
@@ -62,7 +137,20 @@ const Cart = () => {
       
       <main className="flex-1 py-8">
         <div className="container mx-auto px-4">
-          <h1 className="text-3xl font-bold text-foreground mb-8">Mi Carrito</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-4">Mi Carrito</h1>
+          
+          {stockWarnings.length > 0 && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <ul className="list-disc list-inside space-y-1">
+                  {stockWarnings.map((warning, i) => (
+                    <li key={i}>{warning}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
           
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Cart Items */}
