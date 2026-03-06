@@ -27,7 +27,8 @@ export function OrderTimeline({ status }: OrderTimelineProps) {
 
   return (
     <div className="py-3">
-      <div className="flex items-center justify-between">
+      {/* Desktop: horizontal */}
+      <div className="hidden sm:flex items-center justify-between">
         {steps.map((step, index) => {
           const Icon = step.icon;
           const isCompleted = index <= currentIndex;
@@ -49,7 +50,7 @@ export function OrderTimeline({ status }: OrderTimelineProps) {
                 </div>
                 <span
                   className={cn(
-                    'text-[11px] font-medium text-center hidden sm:block',
+                    'text-[11px] font-medium text-center',
                     isCompleted ? 'text-primary' : 'text-muted-foreground'
                   )}
                 >
@@ -64,6 +65,43 @@ export function OrderTimeline({ status }: OrderTimelineProps) {
                   )}
                 />
               )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Mobile: vertical, show current + adjacent */}
+      <div className="sm:hidden space-y-2">
+        {steps.map((step, index) => {
+          const Icon = step.icon;
+          const isCompleted = index <= currentIndex;
+          const isCurrent = index === currentIndex;
+          const isAdjacent = Math.abs(index - currentIndex) === 1;
+
+          if (!isCurrent && !isAdjacent && !isCompleted) return null;
+
+          return (
+            <div key={step.key} className="flex items-center gap-3">
+              <div
+                className={cn(
+                  'w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all duration-300',
+                  isCompleted
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground',
+                  isCurrent && 'ring-4 ring-primary/20 scale-110'
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+              </div>
+              <span
+                className={cn(
+                  'text-sm font-medium',
+                  isCurrent ? 'text-primary' : isCompleted ? 'text-foreground' : 'text-muted-foreground'
+                )}
+              >
+                {step.label}
+                {isCurrent && <span className="text-xs ml-1 text-muted-foreground">(actual)</span>}
+              </span>
             </div>
           );
         })}

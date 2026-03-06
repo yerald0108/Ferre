@@ -288,6 +288,11 @@ export function AdminProducts({ gestorMode = false }: { gestorMode?: boolean }) 
                           {product.categories.icon} {product.categories.name}
                         </Badge>
                       )}
+                      {product.creator_name && (
+                        <span className="text-xs text-muted-foreground">
+                          Publicado por: {product.creator_name}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2">

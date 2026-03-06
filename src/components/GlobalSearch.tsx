@@ -9,7 +9,28 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { useProducts, useCategories } from '@/hooks/useProducts';
-import { Search, Tag } from 'lucide-react';
+import { Search, Tag, Clock, X } from 'lucide-react';
+
+const SEARCH_HISTORY_KEY = 'ferrehogar-search-history';
+const MAX_HISTORY = 5;
+
+function getSearchHistory(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function addToSearchHistory(term: string) {
+  const history = getSearchHistory().filter(h => h !== term);
+  history.unshift(term);
+  localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
+}
+
+function clearSearchHistory() {
+  localStorage.removeItem(SEARCH_HISTORY_KEY);
+}
 
 interface GlobalSearchProps {
   open: boolean;
@@ -20,15 +41,34 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   const navigate = useNavigate();
   const { data: products } = useProducts();
   const { data: categories } = useCategories();
+  const [history, setHistory] = useState<string[]>([]);
 
-  const handleSelectProduct = (productId: string) => {
+  useEffect(() => {
+    if (open) {
+      setHistory(getSearchHistory());
+    }
+  }, [open]);
+
+  const handleSelectProduct = (productId: string, productName: string) => {
+    addToSearchHistory(productName);
     onOpenChange(false);
     navigate(`/producto/${productId}`);
   };
 
-  const handleSelectCategory = (categoryId: string) => {
+  const handleSelectCategory = (categoryId: string, categoryName: string) => {
+    addToSearchHistory(categoryName);
     onOpenChange(false);
     navigate(`/productos?categoria=${categoryId}`);
+  };
+
+  const handleSelectHistory = (term: string) => {
+    onOpenChange(false);
+    navigate(`/productos?buscar=${encodeURIComponent(term)}`);
+  };
+
+  const handleClearHistory = () => {
+    clearSearchHistory();
+    setHistory([]);
   };
 
   return (
@@ -36,12 +76,38 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
       <CommandInput placeholder="Buscar productos, categorías..." />
       <CommandList>
         <CommandEmpty>No se encontraron resultados.</CommandEmpty>
+        
+        {history.length > 0 && (
+          <CommandGroup heading={
+            <div className="flex items-center justify-between">
+              <span>Búsquedas recientes</span>
+              <button
+                onClick={handleClearHistory}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Limpiar
+              </button>
+            </div>
+          }>
+            {history.map((term) => (
+              <CommandItem
+                key={term}
+                value={`history-${term}`}
+                onSelect={() => handleSelectHistory(term)}
+              >
+                <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span>{term}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
         <CommandGroup heading="Categorías">
           {categories?.map((cat) => (
             <CommandItem
               key={cat.id}
               value={`cat-${cat.name}`}
-              onSelect={() => handleSelectCategory(cat.id)}
+              onSelect={() => handleSelectCategory(cat.id, cat.name)}
             >
               <Tag className="mr-2 h-4 w-4" />
               <span>{cat.icon} {cat.name}</span>
@@ -53,7 +119,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
             <CommandItem
               key={product.id}
               value={`prod-${product.name}`}
-              onSelect={() => handleSelectProduct(product.id)}
+              onSelect={() => handleSelectProduct(product.id, product.name)}
             >
               <Search className="mr-2 h-4 w-4" />
               <span>{product.name}</span>

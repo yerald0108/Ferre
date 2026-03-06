@@ -4,8 +4,9 @@ import { Review, useDeleteReview, useProductRating } from '@/hooks/useReviews';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Trash2, Edit2, User } from 'lucide-react';
+import { Trash2, Edit2, User, BadgeCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -25,9 +26,10 @@ interface ReviewListProps {
   productId: string;
   reviews: Review[];
   onEditReview?: () => void;
+  purchasedUserIds?: string[];
 }
 
-export function ReviewList({ productId, reviews, onEditReview }: ReviewListProps) {
+export function ReviewList({ productId, reviews, onEditReview, purchasedUserIds = [] }: ReviewListProps) {
   const { user } = useAuth();
   const deleteReview = useDeleteReview();
   const rating = useProductRating(productId);
@@ -110,6 +112,12 @@ export function ReviewList({ productId, reviews, onEditReview }: ReviewListProps
                           {review.profile?.full_name || 'Usuario'}
                         </span>
                         <StarRating rating={review.rating} size="sm" />
+                        {purchasedUserIds.includes(review.user_id) && (
+                          <Badge variant="secondary" className="gap-1 text-xs">
+                            <BadgeCheck className="h-3 w-3" />
+                            Compra verificada
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {format(new Date(review.created_at), "d 'de' MMMM, yyyy", { locale: es })}

@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Package, Clock, User, MapPin, Phone, CreditCard } from 'lucide-react';
+import { Loader2, Package, Clock, User, MapPin, Phone, CreditCard, Bell } from 'lucide-react';
 import { useAdminOrders, useUpdateOrderStatus, OrderWithProfile } from '@/hooks/useOrders';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 const statusLabels: Record<string, string> = {
   pending: 'Pendiente',
@@ -18,19 +20,39 @@ const statusLabels: Record<string, string> = {
   cancelled: 'Cancelado',
 };
 
-const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  confirmed: 'bg-blue-100 text-blue-800',
-  preparing: 'bg-purple-100 text-purple-800',
-  shipped: 'bg-cyan-100 text-cyan-800',
-  delivered: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800',
+const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  pending: 'secondary',
+  confirmed: 'default',
+  preparing: 'default',
+  shipped: 'default',
+  delivered: 'secondary',
+  cancelled: 'destructive',
 };
 
 export function AdminOrders() {
   const { data: orders, isLoading } = useAdminOrders();
   const updateStatus = useUpdateOrderStatus();
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const queryClient = useQueryClient();
+
+  // Realtime subscription for new orders
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-orders-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+          toast.info('📦 Lista de pedidos actualizada', { duration: 3000 });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-CU', {
@@ -96,7 +118,7 @@ export function AdminOrders() {
                     <h3 className="font-semibold text-foreground">
                       Pedido #{order.id.slice(0, 8).toUpperCase()}
                     </h3>
-                    <Badge className={statusColors[order.status]}>
+                    <Badge variant={statusVariants[order.status] || 'secondary'}>
                       {statusLabels[order.status]}
                     </Badge>
                   </div>

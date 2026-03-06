@@ -69,6 +69,7 @@ export const StepAddress = ({ formData, onChange, onSelectChange }: StepAddressP
             value={formData.address}
             onChange={onChange}
             className="pl-10"
+            autoComplete="street-address"
           />
         </div>
       </div>

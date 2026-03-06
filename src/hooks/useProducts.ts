@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export type Product = Tables<'products'> & {
   categories?: Tables<'categories'> | null;
+  creator_name?: string | null;
 };
 
 export type Category = Tables<'categories'>;
@@ -37,7 +38,24 @@ export function useAdminProducts() {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as Product[];
+      
+      // Get creator names
+      const creatorIds = [...new Set(data.filter(p => p.created_by).map(p => p.created_by!))];
+      let creatorMap = new Map<string, string>();
+      if (creatorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', creatorIds);
+        if (profiles) {
+          creatorMap = new Map(profiles.map(p => [p.user_id, p.full_name]));
+        }
+      }
+      
+      return data.map(p => ({
+        ...p,
+        creator_name: p.created_by ? creatorMap.get(p.created_by) || null : null,
+      })) as Product[];
     },
   });
 }

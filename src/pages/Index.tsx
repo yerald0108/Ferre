@@ -9,6 +9,7 @@ import { ProductGridSkeleton } from '@/components/skeletons/ProductCardSkeleton'
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { useProducts, useCategories } from '@/hooks/useProducts';
+import { SEOHead } from '@/components/SEOHead';
 
 const Index = () => {
   const { data: products, isLoading: productsLoading } = useProducts();
@@ -24,6 +25,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <SEOHead />
       <Header />
       
       <main className="flex-1">

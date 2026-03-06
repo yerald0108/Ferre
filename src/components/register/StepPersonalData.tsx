@@ -25,6 +25,7 @@ export const StepPersonalData = ({ formData, onChange }: StepPersonalDataProps) 
             value={formData.fullName}
             onChange={onChange}
             className="pl-10"
+            autoComplete="name"
             required
           />
         </div>
@@ -42,6 +43,7 @@ export const StepPersonalData = ({ formData, onChange }: StepPersonalDataProps) 
             value={formData.email}
             onChange={onChange}
             className="pl-10"
+            autoComplete="email"
             required
           />
         </div>
@@ -59,6 +61,7 @@ export const StepPersonalData = ({ formData, onChange }: StepPersonalDataProps) 
             value={formData.phone}
             onChange={onChange}
             className="pl-10"
+            autoComplete="tel"
             required
           />
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -19,12 +19,17 @@ import { ReviewList } from '@/components/reviews/ReviewList';
 import { RelatedProducts } from '@/components/RelatedProducts';
 import { useProductReviews, useUserReview, useProductRating, useHasPurchased } from '@/hooks/useReviews';
 import { useAuth } from '@/hooks/useAuth';
+import { SEOHead } from '@/components/SEOHead';
+import { StockAlertForm } from '@/components/StockAlertForm';
+import { MiniCart } from '@/components/MiniCart';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const addItem = useCartStore((state) => state.addItem);
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const [miniCartOpen, setMiniCartOpen] = useState(false);
 
   // Fetch product
   const { data: product, isLoading: productLoading } = useQuery({
@@ -49,6 +54,25 @@ const ProductDetail = () => {
   const { data: hasPurchased } = useHasPurchased(id || '');
   const rating = useProductRating(id || '');
 
+  // Get verified purchasers for reviews
+  const { data: purchasedUserIds = [] } = useQuery({
+    queryKey: ['review-purchasers', id],
+    queryFn: async () => {
+      if (!reviews || reviews.length === 0) return [];
+      const reviewerIds = reviews.map(r => r.user_id);
+      const { data } = await supabase
+        .from('order_items')
+        .select('orders!inner(user_id, status)')
+        .eq('product_id', id!)
+        .in('orders.status', ['confirmed', 'preparing', 'shipped', 'delivered']);
+      
+      if (!data) return [];
+      const purchaserSet = new Set(data.map((d: any) => d.orders.user_id));
+      return reviewerIds.filter(uid => purchaserSet.has(uid));
+    },
+    enabled: !!id && reviews.length > 0,
+  });
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-CU', {
       style: 'currency',
@@ -69,6 +93,7 @@ const ProductDetail = () => {
         stock: product.stock,
       });
       toast.success(`${product.name} añadido al carrito`);
+      setMiniCartOpen(true);
     }
   };
 
@@ -101,6 +126,12 @@ const ProductDetail = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <SEOHead 
+        title={product.name}
+        description={product.description || `Compra ${product.name} en FerreHogar`}
+        image={product.image_url || undefined}
+      />
+      <MiniCart open={miniCartOpen} onOpenChange={setMiniCartOpen} />
       <Header />
       
       <main className="flex-1 py-8">
@@ -114,11 +145,18 @@ const ProductDetail = () => {
           <div className="grid md:grid-cols-2 gap-8 mb-12">
             {/* Image */}
             <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
-              <img
-                src={product.image_url || '/placeholder.svg'}
-                alt={product.name}
-                className="h-full w-full object-cover"
-              />
+              {imgError ? (
+                <div className="h-full w-full flex items-center justify-center bg-muted">
+                  <Package className="h-20 w-20 text-muted-foreground" />
+                </div>
+              ) : (
+                <img
+                  src={product.image_url || '/placeholder.svg'}
+                  alt={product.name}
+                  className="h-full w-full object-cover"
+                  onError={() => setImgError(true)}
+                />
+              )}
               {product.stock === 0 ? (
                 <Badge variant="destructive" className="absolute top-4 right-4 text-lg px-4 py-2">
                   Agotado
@@ -162,22 +200,28 @@ const ProductDetail = () => {
 
               <Separator />
 
-              <Button
-                onClick={handleAddToCart}
-                size="lg"
-                className="w-full gap-2"
-                disabled={product.stock === 0}
-                variant={product.stock === 0 ? "secondary" : "default"}
-              >
-                {product.stock === 0 ? (
-                  'Producto Agotado'
-                ) : (
-                  <>
-                    <ShoppingCart className="h-5 w-5" />
-                    Añadir al carrito
-                  </>
-                )}
-              </Button>
+              {product.stock === 0 ? (
+                <div className="space-y-3">
+                  <Button
+                    size="lg"
+                    className="w-full"
+                    variant="secondary"
+                    disabled
+                  >
+                    Producto Agotado
+                  </Button>
+                  <StockAlertForm productId={product.id} productName={product.name} />
+                </div>
+              ) : (
+                <Button
+                  onClick={handleAddToCart}
+                  size="lg"
+                  className="w-full gap-2"
+                >
+                  <ShoppingCart className="h-5 w-5" />
+                  Añadir al carrito
+                </Button>
+              )}
             </div>
           </div>
 
@@ -278,6 +322,7 @@ const ProductDetail = () => {
                 productId={product.id}
                 reviews={reviews}
                 onEditReview={() => setShowReviewForm(true)}
+                purchasedUserIds={purchasedUserIds}
               />
             )}
           </div>

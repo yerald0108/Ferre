@@ -8,15 +8,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Search, Filter, X } from 'lucide-react';
 import { ProductGridSkeleton } from '@/components/skeletons/ProductCardSkeleton';
 import { useProducts, useCategories } from '@/hooks/useProducts';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { SEOHead } from '@/components/SEOHead';
 
 const Products = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
   const [onlyInStock, setOnlyInStock] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const isMobile = useIsMobile();
   const { data: products, isLoading: productsLoading } = useProducts();
   const { data: categories, isLoading: categoriesLoading } = useCategories();
   
@@ -69,108 +74,144 @@ const Products = () => {
   const hasActiveFilters = searchTerm || selectedCategory !== 'all' || onlyInStock || 
     priceRange[0] > 0 || priceRange[1] < maxPrice;
 
+  const activeFilterCount = [
+    searchTerm,
+    selectedCategory !== 'all',
+    onlyInStock,
+    priceRange[0] > 0 || priceRange[1] < maxPrice,
+  ].filter(Boolean).length;
+
   const isLoading = productsLoading || categoriesLoading;
+
+  const filtersContent = (
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <Filter className="h-5 w-5 text-primary" />
+          <h2 className="font-semibold text-foreground">Filtros</h2>
+        </div>
+        {hasActiveFilters && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={clearAllFilters}
+            className="text-xs h-7 px-2"
+          >
+            <X className="h-3 w-3 mr-1" />
+            Limpiar
+          </Button>
+        )}
+      </div>
+      
+      {/* Search */}
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar productos..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+      {/* Availability Filter */}
+      <div className="mb-6 pb-6 border-b">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="stock-filter" className="text-sm font-medium cursor-pointer">
+            Solo productos disponibles
+          </Label>
+          <Switch
+            id="stock-filter"
+            checked={onlyInStock}
+            onCheckedChange={setOnlyInStock}
+          />
+        </div>
+      </div>
+
+      {/* Price Range Filter */}
+      <div className="mb-6 pb-6 border-b">
+        <h3 className="text-sm font-medium text-foreground mb-4">Rango de precio</h3>
+        <div className="px-1">
+          <Slider
+            value={priceRange}
+            onValueChange={(value) => setPriceRange(value as [number, number])}
+            min={0}
+            max={maxPrice}
+            step={10}
+            className="mb-4"
+          />
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>${priceRange[0].toLocaleString()}</span>
+            <span>${priceRange[1].toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Categories */}
+      <div>
+        <h3 className="text-sm font-medium text-foreground mb-3">Categorías</h3>
+        <div className="space-y-1">
+          <Button
+            variant={selectedCategory === 'all' ? 'default' : 'ghost'}
+            size="sm"
+            className="w-full justify-start"
+            onClick={() => handleCategoryChange('all')}
+          >
+            Todas las categorías
+          </Button>
+          {categories?.map((category) => (
+            <Button
+              key={category.id}
+              variant={selectedCategory === category.id || selectedCategory.toLowerCase() === category.name.toLowerCase() ? 'default' : 'ghost'}
+              size="sm"
+              className="w-full justify-start gap-2"
+              onClick={() => handleCategoryChange(category.id)}
+            >
+              <span>{category.icon}</span>
+              {category.name}
+            </Button>
+          ))}
+        </div>
+      </div>
+    </>
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <SEOHead title="Productos" description="Explora nuestro catálogo completo de herramientas, materiales y artículos para el hogar." />
       <Header />
       
       <main className="flex-1 py-8">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row gap-8">
-            {/* Sidebar Filters */}
-            <aside className="w-full md:w-72 shrink-0">
-              <div className="bg-card rounded-xl p-6 shadow-sm border sticky top-24">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2">
-                    <Filter className="h-5 w-5 text-primary" />
-                    <h2 className="font-semibold text-foreground">Filtros</h2>
+            {/* Mobile: Sheet trigger */}
+            {isMobile && (
+              <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="outline" className="w-full gap-2 mb-2">
+                    <Filter className="h-4 w-4" />
+                    Filtros{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[300px] overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle>Filtros</SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-4">
+                    {filtersContent}
                   </div>
-                  {hasActiveFilters && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={clearAllFilters}
-                      className="text-xs h-7 px-2"
-                    >
-                      <X className="h-3 w-3 mr-1" />
-                      Limpiar
-                    </Button>
-                  )}
-                </div>
-                
-                {/* Search */}
-                <div className="relative mb-6">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar productos..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+                </SheetContent>
+              </Sheet>
+            )}
 
-                {/* Availability Filter */}
-                <div className="mb-6 pb-6 border-b">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="stock-filter" className="text-sm font-medium cursor-pointer">
-                      Solo productos disponibles
-                    </Label>
-                    <Switch
-                      id="stock-filter"
-                      checked={onlyInStock}
-                      onCheckedChange={setOnlyInStock}
-                    />
-                  </div>
+            {/* Desktop: Sidebar */}
+            {!isMobile && (
+              <aside className="w-72 shrink-0">
+                <div className="bg-card rounded-xl p-6 shadow-sm border sticky top-24">
+                  {filtersContent}
                 </div>
-
-                {/* Price Range Filter */}
-                <div className="mb-6 pb-6 border-b">
-                  <h3 className="text-sm font-medium text-foreground mb-4">Rango de precio</h3>
-                  <div className="px-1">
-                    <Slider
-                      value={priceRange}
-                      onValueChange={(value) => setPriceRange(value as [number, number])}
-                      min={0}
-                      max={maxPrice}
-                      step={10}
-                      className="mb-4"
-                    />
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>${priceRange[0].toLocaleString()}</span>
-                      <span>${priceRange[1].toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Categories */}
-                <div>
-                  <h3 className="text-sm font-medium text-foreground mb-3">Categorías</h3>
-                  <div className="space-y-1">
-                    <Button
-                      variant={selectedCategory === 'all' ? 'default' : 'ghost'}
-                      size="sm"
-                      className="w-full justify-start"
-                      onClick={() => handleCategoryChange('all')}
-                    >
-                      Todas las categorías
-                    </Button>
-                    {categories?.map((category) => (
-                      <Button
-                        key={category.id}
-                        variant={selectedCategory === category.id || selectedCategory.toLowerCase() === category.name.toLowerCase() ? 'default' : 'ghost'}
-                        size="sm"
-                        className="w-full justify-start gap-2"
-                        onClick={() => handleCategoryChange(category.id)}
-                      >
-                        <span>{category.icon}</span>
-                        {category.name}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </aside>
+              </aside>
+            )}
             
             {/* Products Grid */}
             <div className="flex-1">

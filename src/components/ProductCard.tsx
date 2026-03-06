@@ -1,4 +1,5 @@
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, Package } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
@@ -16,6 +17,7 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   const addItem = useCartStore((state) => state.addItem);
   const { averageRating, totalReviews } = useProductRating(product.id);
+  const [imgError, setImgError] = useState(false);
 
   const handleAddToCart = () => {
     addItem(product);
@@ -34,11 +36,18 @@ export function ProductCard({ product }: ProductCardProps) {
     <Card className="group overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
       <Link to={`/producto/${product.id}`}>
         <div className="relative aspect-square overflow-hidden bg-muted">
-          <img
-            src={product.image}
-            alt={product.name}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
+          {imgError ? (
+            <div className="h-full w-full flex items-center justify-center bg-muted">
+              <Package className="h-12 w-12 text-muted-foreground" />
+            </div>
+          ) : (
+            <img
+              src={product.image}
+              alt={product.name}
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              onError={() => setImgError(true)}
+            />
+          )}
           <FavoriteButton productId={product.id} variant="overlay" />
           {product.stock === 0 ? (
             <Badge variant="destructive" className="absolute top-2 right-2">

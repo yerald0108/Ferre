@@ -101,6 +101,7 @@ export const StepDelivery = ({ formData, onInputChange, onSelectChange }: StepDe
               onChange={onInputChange}
               rows={3}
               className="resize-none"
+              autoComplete="street-address"
               required
             />
             <p className="text-xs text-muted-foreground">

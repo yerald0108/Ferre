@@ -40,6 +40,7 @@ export const StepContactInfo = ({ formData, onInputChange }: StepContactInfoProp
             value={formData.fullName}
             onChange={onInputChange}
             className="h-12"
+            autoComplete="name"
             required
           />
         </div>
@@ -57,6 +58,7 @@ export const StepContactInfo = ({ formData, onInputChange }: StepContactInfoProp
             value={formData.phone}
             onChange={onInputChange}
             className="h-12"
+            autoComplete="tel"
             required
           />
           <p className="text-xs text-muted-foreground">Te contactaremos por este número para confirmar</p>
@@ -75,6 +77,7 @@ export const StepContactInfo = ({ formData, onInputChange }: StepContactInfoProp
             value={formData.email}
             onChange={onInputChange}
             className="h-12"
+            autoComplete="email"
           />
         </div>
       </div>
